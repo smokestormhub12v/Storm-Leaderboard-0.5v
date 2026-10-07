@@ -1,0 +1,188 @@
+-- Custom Enhanced Leaderboard Script for Delta
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local CoreGui = game:GetService("CoreGui")
+
+-- Prevent duplicate UI if executed multiple times
+if CoreGui:FindFirstChild("CustomEnhancedLeaderboard") then
+    CoreGui.CustomEnhancedLeaderboard:Destroy()
+end
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "CustomEnhancedLeaderboard"
+ScreenGui.Parent = CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Main Container Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 320, 0, 400)
+MainFrame.Position = UDim2.new(0.5, -160, 0.5, -200)
+MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 10)
+UICorner.Parent = MainFrame
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(60, 60, 75)
+UIStroke.Thickness = 1.5
+UIStroke.Parent = MainFrame
+
+-- Header
+local Header = Instance.new("TextLabel")
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
+Header.BorderSizePixel = 0
+Header.Text = "🌟 Enhanced Leaderboard"
+Header.TextColor3 = Color3.fromRGB(255, 255, 255)
+Header.TextSize = 16
+Header.Font = Enum.Font.GothamBold
+Header.Parent = MainFrame
+
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 10)
+HeaderCorner.Parent = Header
+
+-- Scrolling Container for Player Rows
+local ScrollingFrame = Instance.new("ScrollingFrame")
+ScrollingFrame.Size = UDim2.new(1, -20, 1, -60)
+ScrollingFrame.Position = UDim2.new(0, 10, 0, 50)
+ScrollingFrame.BackgroundTransparency = 1
+ScrollingFrame.BorderSizePixel = 0
+ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+ScrollingFrame.ScrollBarThickness = 4
+ScrollingFrame.Parent = MainFrame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 6)
+UIListLayout.Parent = ScrollingFrame
+
+-- Function to update and sort leaderboard rows dynamically
+local function updateLeaderboard()
+    -- Clear old entries
+    for _, child in ipairs(ScrollingFrame:GetChildren()) do
+        if child:IsA("Frame") then
+            child:Destroy()
+        end
+    end
+
+    local players = Players:GetPlayers()
+    
+    -- Sort players based on their first numeric leaderstat value (highest score first)
+    table.sort(players, function(a, b)
+        local statA = a:FindFirstChild("leaderstats")
+        local statB = b:FindFirstChild("leaderstats")
+        if statA and statB then
+            local valA, valB = 0, 0
+            for _, v in ipairs(statA:GetChildren()) do
+                if v:IsA("IntValue") or v:IsA("NumberValue") then 
+                    valA = v.Value 
+                    break 
+                end
+            end
+            for _, v in ipairs(statB:GetChildren()) do
+                if v:IsA("IntValue") or v:IsA("NumberValue") then 
+                    valB = v.Value 
+                    break 
+                end
+            end
+            return valA > valB
+        end
+        return false
+    end)
+
+    -- Render player rows
+    for _, player in ipairs(players) do
+        local Row = Instance.new("Frame")
+        Row.Size = UDim2.new(1, 0, 0, 36)
+        -- Highlight local player's row differently
+        Row.BackgroundColor3 = (player == LocalPlayer) and Color3.fromRGB(45, 55, 80) or Color3.fromRGB(35, 35, 45)
+        Row.BorderSizePixel = 0
+        Row.Parent = ScrollingFrame
+
+        local RowCorner = Instance.new("UICorner")
+        RowCorner.CornerRadius = UDim.new(0, 6)
+        RowCorner.Parent = Row
+
+        -- Player Name
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Size = UDim2.new(0.55, 0, 1, 0)
+        NameLabel.Position = UDim2.new(0, 10, 0, 0)
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Text = player.Name
+        NameLabel.TextColor3 = Color3.fromRGB(240, 240, 240)
+        NameLabel.TextSize = 14
+        NameLabel.Font = Enum.Font.GothamMedium
+        NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        NameLabel.Parent = Row
+
+        -- Stats Values
+        local StatsLabel = Instance.new("TextLabel")
+        StatsLabel.Size = UDim2.new(0.45, -15, 1, 0)
+        StatsLabel.Position = UDim2.new(0.55, 0, 0, 0)
+        StatsLabel.BackgroundTransparency = 1
+        
+        local leaderstats = player:FindFirstChild("leaderstats")
+        local statText = ""
+        if leaderstats then
+            local parts = {}
+            for _, stat in ipairs(leaderstats:GetChildren()) do
+                if stat:IsA("IntValue") or stat:IsA("NumberValue") or stat:IsA("StringValue") then
+                    table.insert(parts, tostring(stat.Value))
+                end
+            end
+            statText = table.concat(parts, " | ")
+        else
+            statText = "No Stats"
+        end
+
+        StatsLabel.Text = statText
+        StatsLabel.TextColor3 = Color3.fromRGB(180, 220, 255)
+        StatsLabel.TextSize = 13
+        StatsLabel.Font = Enum.Font.Gotham
+        StatsLabel.TextXAlignment = Enum.TextXAlignment.Right
+        StatsLabel.Parent = Row
+    end
+
+    -- Update scrolling canvas height
+    ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, #players * 42)
+end
+
+-- Connect events for live updates when players join/leave or stats change
+Players.PlayerAdded:Connect(function(player)
+    player.ChildAdded:Connect(function(child)
+        if child.Name == "leaderstats" then
+            child.ChildAdded:Connect(updateLeaderboard)
+            for _, stat in ipairs(child:GetChildren()) do
+                if stat:IsA("ValueBase") then
+                    stat.Changed:Connect(updateLeaderboard)
+                end
+            end
+        end
+        updateLeaderboard()
+    end)
+    updateLeaderboard()
+end)
+
+Players.PlayerRemoving:Connect(updateLeaderboard)
+
+for _, player in ipairs(Players:GetPlayers()) do
+    local leaderstats = player:FindFirstChild("leaderstats")
+    if leaderstats then
+        for _, stat in ipairs(leaderstats:GetChildren()) do
+            if stat:IsA("ValueBase") then
+                stat.Changed:Connect(updateLeaderboard)
+            end
+        end
+    end
+end
+
+-- Initial render
+task.spawn(updateLeaderboard)
+print("Custom Enhanced Leaderboard loaded successfully!")
